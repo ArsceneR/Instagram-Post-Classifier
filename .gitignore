@@ -12,3 +12,6 @@ venv/
 
 # Ignore system files
 .DS_Store
+
+#ignore dataset files
+ConversationStreamDistribution/ 
