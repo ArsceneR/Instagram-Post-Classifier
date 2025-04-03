@@ -13,5 +13,19 @@ venv/
 # Ignore system files
 .DS_Store
 
-#ignore dataset files
-ConversationStreamDistribution/ 
+# Ignore dataset files
+ConversationStreamDistribution/
+
+# Ignore .txt and .jpg files under DownloadedPosts/
+#ignoring root direrctory failed for some reason so specified file type directyl 
+#be sure to change this if you want to keep these file types in the repository
+*.txt
+*jpg
+*.jpg*
+*.xz
+
+#ignore the following files which are generated during runtime
+# these files are generated during runtime and should not be tracked by git
+failed_urls.txt
+# this file is used to rename downloaded files and should not be tracked by git
+rename.py
