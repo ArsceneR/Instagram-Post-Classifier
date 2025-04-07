@@ -15,18 +15,19 @@ venv/
 
 # Ignore dataset files
 ConversationStreamDistribution/
+Downloaded_Posts/
 
-# Ignore .txt and .jpg files under DownloadedPosts/
-#ignoring root direrctory failed for some reason so specified file type directyl 
-#be sure to change this if you want to keep these file types in the repository
+#ignore downloaded files with specific extensions
 *.txt
 *jpg
 *.jpg*
 *.xz
+*.mp4 
 
 #ignore the following files which are generated during runtime
 # these files are generated during runtime and should not be tracked by git
 failed_urls.txt
 # this file is used to rename downloaded files and should not be tracked by git
-testLogin.py
+check_deterministim.py
 rename.py
+

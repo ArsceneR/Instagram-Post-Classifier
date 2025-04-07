@@ -24,7 +24,7 @@ def batch_post_downloads():
 
     loader = instaloader.Instaloader(
         sanitize_paths=True,
-        fatal_status_codes=[302, 400, 401],
+        fatal_status_codes=[302, 400],
         rate_controller=lambda ctx: MyRateController(ctx)
     )
     
@@ -43,16 +43,14 @@ def batch_post_downloads():
     ]
     post_urls = get_column_data(file_paths)
     
-    post_num = 0
     total_posts = len(post_urls)
     logging.info("Starting download of {} posts.".format(total_posts))
     
-    root_dir = "DownloadedPosts"
-    os.makedirs(root_dir, exist_ok=True)
-
+    start= 5574 #the post you want to start downloading from.
     
     # Iterate through each URL and download the corresponding post.
-    for post_num, post_url in enumerate(post_urls, start=1):
+    for post_num in range(start,total_posts):
+        post_url = post_urls[post_num].strip()  # Ensure no leading/trailing whitespace
         try:
             # Remove any trailing slash and extract shortcode
             clean_url = post_url.rstrip('/')
@@ -69,7 +67,7 @@ def batch_post_downloads():
             
             #check if target directory exists 
             #instaloader already handles checking for exisiting posts and will skip downloading if it already exists. no need to double check here.
-            post_dir = f"DownloadedPosts/Post-{post_num}"
+            post_dir = f"Post-{post_num}"
             
             loader.download_post(post, target=post_dir)
             
