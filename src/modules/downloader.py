@@ -1,24 +1,9 @@
 import time
 import random
 import logging
-import os
-from datetime import datetime, timedelta
 import instaloader
-from new_read_data import get_column_data
-
-# Configure logging for debugging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# Custom RateController to log wait times 
-# maybe consider exponential/  add extra backoff strategies.
-class MyRateController(instaloader.RateController):
-    def sleep(self, secs: float):
-        # Log the sleep time for diagnostics.
-        logging.info("Sleeping for {:.2f} seconds due to rate limiting...".format(secs))
-        time.sleep(secs)
+from modules.rate_controller import MyRateController
+from modules.data_reader import get_column_data
 
 def batch_post_downloads():
 
@@ -29,7 +14,7 @@ def batch_post_downloads():
     )
     
     try: 
-        loader.interactive_login("barbean_")
+        loader.interactive_login("some_username")
     except (instaloader.exceptions.BadCredentialsException, instaloader.exceptions.InvalidArgumentException) as e:
         logging.error("Login failed. Please check your username and password or ensure your account is not locked. Error: {}".format(e))
         return
@@ -46,10 +31,12 @@ def batch_post_downloads():
     total_posts = len(post_urls)
     logging.info("Starting download of {} posts.".format(total_posts))
     
-    start= 5574 #the post you want to start downloading from.
+    succedded_count = 0
+    start= 0 #the post you want to start downloading from.
+    end = total_posts
     
     # Iterate through each URL and download the corresponding post.
-    for post_num in range(start,total_posts):
+    for post_num in range(start,end):
         post_url = post_urls[post_num].strip()  # Ensure no leading/trailing whitespace
         try:
             # Remove any trailing slash and extract shortcode
@@ -70,7 +57,7 @@ def batch_post_downloads():
             post_dir = f"Post-{post_num}"
             
             loader.download_post(post, target=post_dir)
-            
+            succedded_count += 1
             delay = random.uniform(3, 6)
             logging.info(f"Downloaded post {post_num}/{total_posts}. Waiting {delay:.2f} seconds before next request.")
             time.sleep(delay)
@@ -82,8 +69,6 @@ def batch_post_downloads():
                 time.sleep(long_delay)
         except instaloader.exceptions.QueryReturnedNotFoundException as e:
             logging.error(f"Post not found for URL {post_url}: {e}")
-            with open("failed_urls.txt", "a", encoding="utf-8") as file:
-                file.write(post_url + "\n")
             continue
         except instaloader.exceptions.TooManyRequestsException as e:
             logging.error(f"Rate limit hit while processing URL {post_url}: {e}")
@@ -91,25 +76,12 @@ def batch_post_downloads():
             continue
         except Exception as e:
             logging.error(f"Exception type: {type(e).__name__} - Failed to download post at URL {post_url}: {e}")
-            '''
-        
-                 if post_num == 1 and os.path.exists("failed_urls.txt"):
-                # Clear the failed_urls.txt if it is the first post to avoid confusion
-                os.remove("failed_urls.txt")
-            '''
-       
+            
                 
-            with open("failed_urls.txt", "a", encoding="utf-8") as file:
-                file.write(post_url + "\n")
-                
-            continue
     
-    if post_num == 0:
+    if succedded_count == 0:
         logging.warning("No posts were processed. Check the input URLs.")
         return
-    failed_count = sum(1 for _ in open("failed_urls.txt", "r", encoding="utf-8"))
-    logging.info(f"failed_count: {failed_count}")
-    logging.info(f"Completed downloading {total_posts} posts with {failed_count} failures. Check 'failed_urls.txt' for details.")
+    failed_count = end - start - succedded_count
+    logging.info(f"Completed downloading {succedded_count} posts with {failed_count} failures. Check 'failed_urls.txt' for details.")
 
-if __name__ == "__main__":
-    batch_post_downloads()
