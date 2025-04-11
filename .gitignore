@@ -28,6 +28,6 @@ Downloaded_Posts/
 # these files are generated during runtime and should not be tracked by git
 failed_urls.txt
 # this file is used to rename downloaded files and should not be tracked by git
-check_deterministim.py
-rename.py
+find_duplication_point.py
+rename_script.py
 

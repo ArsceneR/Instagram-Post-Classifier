@@ -1,31 +1,32 @@
-import os 
+import os
+import json
+import lzma
+from typing import List
 
-def find_files_without_metadata(download_dir: str) -> None:        
-    valid_paths = []
-    folders_without_metadata = []
-    count = 0
+
+def find_files_without_metadata(download_dir: str) -> List[str]:
+    """Find directories that don't have .xz metadata files."""
+    dirs_without_metadata = []
     
-    # Walk through the directory to find .xz files
-    #make sure to change directory to your Downloads folder.
-    for root, _, files in os.walk(os.path.expanduser(download_dir)): 
-        if "Post" in root: #filter the directories to only include the posts.
+    for root, _, files in os.walk(os.path.expanduser(download_dir)):
+        if "Post" in root:
             has_metadata = False
             for file in files:
-                file_path = os.path.join(root, file)
                 if file.endswith(".xz"):
-                    valid_paths.append(file_path)
-                    has_metadata = True
-            if not has_metadata:
-                folders_without_metadata.append(root)
-
+                    try:
+                        file_path = os.path.join(root, file)
+                        with lzma.open(file_path, "rt", encoding="utf-8") as f:
+                            json.load(f)  # Verify it's a valid JSON file
+                            has_metadata = True
+                            break
+                    except (lzma.LZMAError, json.JSONDecodeError) as e:
+                        print(f"Error reading metadata from {file_path}: {e}")
+                        continue
             
-        count+=1 
+            if not has_metadata:
+                dirs_without_metadata.append(root)
     
-    print(f"number of directories: {count}")
-    print(f"number of valid paths(i.e files with metadata): {len(valid_paths)}")
-    print(f"number of folders without metadata: {len(folders_without_metadata)}")
-    folders_without_metadata.sort(key=lambda x: int(x.split("-")[-1]))  
-    
-        
-   
-    
+    return dirs_without_metadata
+
+
+

@@ -5,6 +5,7 @@ from modules.downloader import batch_post_downloads
 from modules.data_reader import get_column_data
 from modules.count_comments import count_comments
 from modules.add_comments_to_excel import add_comments_to_excel
+import modules.analyze_downloads as download_analysis
 
 file_paths = [
     './ConversationStreamDistribution/ConversationStreamDistribution_3d42a086-f00d-490c-86c6-39c6b783c1b0_2.xlsx',
@@ -27,9 +28,7 @@ if __name__ == "__main__":
     #print(len(count_comments(file_paths, download_dir)))
     # #add comments to excel
     #add_comments_to_excel(file_paths, download_dir)
-
-    
-    
-            
+    #
+    batch_post_downloads(download_analysis.find_failed_urls(file_paths, download_dir))
             
 
