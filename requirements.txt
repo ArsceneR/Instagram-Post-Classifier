@@ -5,6 +5,7 @@ fastexcel==0.13.0
 idna==3.10
 instaloader==4.14.1
 numpy==2.2.4
+pandas==2.2.3
 polars==1.26.0
 pyarrow==19.0.1
 python-dateutil==2.9.0.post0
