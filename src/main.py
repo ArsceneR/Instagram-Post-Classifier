@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # findFailed(file_paths)
     # batch_post_downloads() -> this is commented out to avoid downloading posts again
     # get_column_data(file_paths)
-    #print(count_comments(file_paths, download_dir))
+    #print(len(count_comments(file_paths, download_dir)))
     # #add comments to excel
     #add_comments_to_excel(file_paths, download_dir)
 

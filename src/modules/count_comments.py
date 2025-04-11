@@ -17,7 +17,7 @@ def count_comments(file_paths: List[str], download_dir: str) -> Dict[str, int]:
         Dict[str, int]: A dictionary mapping post URLs to their total comment counts.
     """
     # Initialize a dictionary with URLs from the Excel files
-    excel_urls = {url: 0 for url in get_column_data(file_paths)}
+    excel_urls = {url: -1 for url in get_column_data(file_paths)}
 
     # Walk through the directory to process .xz files
     for root, _, files in os.walk(os.path.expanduser(download_dir)):
@@ -37,7 +37,10 @@ def count_comments(file_paths: List[str], download_dir: str) -> Dict[str, int]:
 
                         # Update the comment count for the URL if it exists in the Excel data
                         if url in excel_urls:
-                            excel_urls[url] += comment_count
+                            if excel_urls[url] == -1:
+                                excel_urls[url] = comment_count
+                            else:
+                                excel_urls[url] += comment_count
 
                     except (KeyError, json.JSONDecodeError, FileNotFoundError) as e:
                         # Log or handle errors gracefully

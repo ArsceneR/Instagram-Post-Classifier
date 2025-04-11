@@ -11,13 +11,14 @@ def add_comments_to_excel(file_paths, download_dir):
     """
     # Get comment counts in the format {url: comment_count}
     comment_counts = count_comments(file_paths, download_dir)
+    
 
     for file_path in file_paths:
         # Load Excel into DataFrame
         df = pd.read_excel(file_path)
 
         # Map 'Permalink' URLs to their comment counts
-        df['Comment Count'] = df['Permalink'].map(comment_counts).fillna(0).astype(int)
+        df['Comment Count'] = df['Permalink'].map(comment_counts).fillna(-1)
 
         # Save the updated DataFrame back to the file
         df.to_excel(file_path, index=False)
