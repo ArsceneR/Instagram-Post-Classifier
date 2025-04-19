@@ -21,29 +21,28 @@ def count_comments(file_paths: List[str], download_dir: str) -> Dict[str, int]:
 
     # Walk through the directory to process .xz files
     for root, _, files in os.walk(os.path.expanduser(download_dir)):
-        if "Post" in root:  # Only process directories containing "Post"
-            for file in files:
-                if file.endswith(".xz"):
-                    file_path = os.path.join(root, file)
-                    try:
-                        # Uncompress the .xz file using lzma
-                        with lzma.open(file_path, "rt", encoding="utf-8") as f:
-                            data = json.load(f)
+        for file in files:
+            if file.endswith(".xz"):
+                file_path = os.path.join(root, file)
+                try:
+                    # Uncompress the .xz file using lzma
+                    with lzma.open(file_path, "rt", encoding="utf-8") as f:
+                        data = json.load(f)
 
-                        # Extract the shortcode and comment count
-                        shortcode = data["node"]["shortcode"]
-                        url = f"https://www.instagram.com/p/{shortcode}/"
-                        comment_count = data["node"]["edge_media_to_parent_comment"]["count"]
+                    # Extract the shortcode and comment count
+                    shortcode = data["node"]["shortcode"]
+                    url = f"https://www.instagram.com/p/{shortcode}/"
+                    comment_count = data["node"]["edge_media_to_parent_comment"]["count"]
 
-                        # Update the comment count for the URL if it exists in the Excel data
-                        if url in excel_urls:
-                            if excel_urls[url] == -1:
-                                excel_urls[url] = comment_count
-                            else:
-                                excel_urls[url] += comment_count
+                    # Update the comment count for the URL if it exists in the Excel data
+                    if url in excel_urls:
+                        if excel_urls[url] == -1:
+                            excel_urls[url] = comment_count
+                        else:
+                            excel_urls[url] += comment_count
 
-                    except (KeyError, json.JSONDecodeError, FileNotFoundError) as e:
-                        # Log or handle errors gracefully
-                        print(f"Error processing file {file_path}: {e}")
+                except (KeyError, json.JSONDecodeError, FileNotFoundError) as e:
+                    # Log or handle errors gracefully
+                    print(f"Error processing file {file_path}: {e}")
 
     return excel_urls

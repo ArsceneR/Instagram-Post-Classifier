@@ -42,7 +42,7 @@ def batch_post_downloads(urls: List[str]):
             
             #check if target directory exists 
             #instaloader already handles checking for exisiting posts and will skip downloading if it already exists. no need to double check here.
-            post_dir = f"Post(F)-{i+1}"
+            post_dir = f"Post(F_6)-{succedded_count}"
             
             loader.download_post(post, target=post_dir)
             succedded_count += 1

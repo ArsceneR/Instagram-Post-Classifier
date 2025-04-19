@@ -15,7 +15,6 @@ venv/
 
 # Ignore dataset files
 ConversationStreamDistribution/
-Downloaded_Posts/
 
 #ignore downloaded files with specific extensions
 *.txt
@@ -24,10 +23,5 @@ Downloaded_Posts/
 *.xz
 *.mp4 
 
-#ignore the following files which are generated during runtime
-# these files are generated during runtime and should not be tracked by git
-failed_urls.txt
-# this file is used to rename downloaded files and should not be tracked by git
-find_duplication_point.py
-rename_script.py
+
 
