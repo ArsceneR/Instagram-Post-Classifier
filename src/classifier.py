@@ -1,4 +1,8 @@
 import modal 
+import json
+import os 
+from google.oauth2 import service_account  
+from googleapiclient.discovery import build
 
 image = (
     modal.Image.debian_slim(python_version="3.10")
@@ -20,8 +24,8 @@ image = (
 
 app = modal.App(image=image)
 
-@app.function(gpu="L40S", secrets=[modal.Secret.from_name("google_drive_secret")]) 
-def retrieve_and_classify()->None: 
+@app.function(secrets=[modal.Secret.from_name("google_drive_secret"), modal.Secret.from_name("storage_folder")]) 
+def classify_posts(storage_folder_id)->None: 
     import clip
     import torch
     import os
@@ -29,15 +33,23 @@ def retrieve_and_classify()->None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
+    model, preprocess = clip.load("ViT-B/32", device=device)
+
+    
     download_dir = '/Downloads/'
     count = 0
+    
+    '''
     #traverse the downloads remote directory 
     for root, _, files in os.walk(download_dir): 
         for file in files: 
             pass
         count+=1
     
-    print(f"total directories = {count}")
+    print(f"total directories = {count}")   
+    
+    '''
+    
 
 @app.function()
 def setup():
@@ -49,15 +61,12 @@ def setup():
     
     load_dotenv()
 
-    
-    # Get the full JSON string from the secret
     service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
 
     # Write to a file (required by Google libraries)
     with open("service_account.json", "w") as f:
         json.dump(service_account_info, f)
 
-    # Fixed: Added closing parenthesis and correct 'scopes' keyword
     creds = service_account.Credentials.from_service_account_file(
         "service_account.json", 
         scopes=[ 
@@ -86,10 +95,9 @@ def setup():
         return folders[0]['id']
     
     # Folder does not exist, create it
-    create_drive_folder.local(service , new_folder_name, parent_id)
+    create_drive_folder(service , new_folder_name, parent_id)
 
-@app.function()
-def create_drive_folder(service, folder_name, parent_folder_id=None):
+def create_drive_folder(folder_name, parent_folder_id=None):
     """Creates a new folder in Google Drive.
 
     Args:
@@ -100,6 +108,22 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
     Returns:
         str: The ID of the newly created folder, or None if creation failed.
     """
+    
+    service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
+
+    # Write to a file (required by Google libraries)
+    with open("service_account.json", "w") as f:
+        json.dump(service_account_info, f)
+
+    creds = service_account.Credentials.from_service_account_file(
+        "service_account.json", 
+        scopes=[ 
+            'https://www.googleapis.com/auth/drive.metadata.readonly',
+            'https://www.googleapis.com/auth/drive.file'
+        ]
+    )
+    service = build('drive', 'v3', credentials=creds)
+    
     file_metadata = {
         'name': folder_name,
         'mimeType': 'application/vnd.google-apps.folder'
@@ -118,7 +142,7 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
 #modal app entry point
 @app.local_entrypoint()
 def classify()->None:
-    write_folder_id = setup.local() #create the directory in google drive.. this function is ran locally. 
-
+    storage_folder_id = setup.local() #create the directory in google drive.. this function is ran locally for cost purposes. 
+    classify_posts.remote(storage_folder_id)
     
     
