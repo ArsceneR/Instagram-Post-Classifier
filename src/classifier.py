@@ -142,7 +142,7 @@ def classify_posts(storage_folder_id):
     # Setup Logging
     logging.basicConfig(level=logging.INFO)
 
-    # Load Google Drive API credentials
+    #build google drive api client 
     service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
     creds = service_account.Credentials.from_service_account_info(
         service_account_info, scopes=["https://www.googleapis.com/auth/drive"] #least permission. no read permissions necessary. 
@@ -291,8 +291,13 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
 def upload_to_drive(service, folder_id, file_path):
     """Uploads a file to Google Drive."""
     file_name = os.path.basename(file_path)
-    mime_type = "image/jpeg" if file_name.lower().endswith((".jpg", ".jpeg")) else "text/plain"
+    mime_type = "image/jpeg"  # Default MIME type
 
+    if file_name.lower().endswith(".txt"):
+        mime_type = "text/plain"
+    elif file_name.lower().endswith(".json.xz"):  # Correct check for .json.xz
+        mime_type = "application/x-xz"
+         
     file_metadata = {"name": file_name, "parents": [folder_id]}
     media = MediaFileUpload(file_path, mimetype=mime_type, resumable=True)
 
