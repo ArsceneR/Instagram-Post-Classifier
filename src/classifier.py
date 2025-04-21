@@ -19,7 +19,7 @@ image = (
         "git+https://github.com/openai/CLIP.git",
         "google-api-python-client",
         "google-auth-oauthlib",
-        "google-auth-httplib2"
+        "google-auth-httplib2", 
         "pillow"
     
     ).add_local_dir("~/Downloads/All_Downloads", "/Downloads/")
@@ -134,6 +134,7 @@ def classify_posts(storage_folder_id):
     import json
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
+    from googleapiclient.http import MediaFileUpload
     import torch
     import clip
     from PIL import Image
@@ -246,7 +247,7 @@ def setup():
     storage_folder_id = create_drive_folder(service , new_folder_name, parent_id)
     return storage_folder_id
 
-def create_drive_folder(folder_name, parent_folder_id=None):
+def create_drive_folder(service, folder_name, parent_folder_id=None):
     """Creates a new folder in Google Drive.
 
     Args:
@@ -257,17 +258,18 @@ def create_drive_folder(folder_name, parent_folder_id=None):
     Returns:
         str: The ID of the newly created folder, or None if creation failed.
     """
-    
-    service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
+    if not service: 
+        service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
 
-    creds = service_account.Credentials.from_service_account_file(
-        service_account_info, 
-        scopes=[ 
-            'https://www.googleapis.com/auth/drive.metadata.readonly',
-            'https://www.googleapis.com/auth/drive.file'
-        ]
-    )
-    service = build('drive', 'v3', credentials=creds)
+        creds = service_account.Credentials.from_service_account_file(
+            service_account_info, 
+            scopes=[ 
+                'https://www.googleapis.com/auth/drive.metadata.readonly',
+                'https://www.googleapis.com/auth/drive.file'
+            ]
+        )
+        service = build('drive', 'v3', credentials=creds)
+    
     
     file_metadata = {
         'name': folder_name,
