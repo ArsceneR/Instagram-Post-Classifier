@@ -4,7 +4,6 @@ import os
 import logging
 from google.oauth2 import service_account  
 from googleapiclient.discovery import build
-from dotenv import load_dotenv
 
 image = (
     modal.Image.debian_slim(python_version="3.10")
@@ -20,18 +19,20 @@ image = (
         "google-api-python-client",
         "google-auth-oauthlib",
         "google-auth-httplib2", 
-        "pillow"
     
-    ).add_local_dir("~/Downloads/All_Downloads", "/Downloads/")
+    ).add_local_dir("~/Downloads/All_Downloads_test", "/Downloads/")
 )
 
-load_dotenv()
 
 app = modal.App(image=image)
 
 
-def analyze_content(image_path, caption_path, model, preprocess, device):
-    """Analyzes image and caption using CLIP."""
+def analyze_content(image_path, model, preprocess, device):
+    import torch
+    import clip
+    from PIL import Image
+    
+    """Analyzes image content using CLIP."""
     categories = {
         "highly_opioid_related": [
             "heroin injection", "fentanyl pills", "oxycodone tablets",
@@ -79,28 +80,12 @@ def analyze_content(image_path, caption_path, model, preprocess, device):
     with torch.no_grad():
         image_features = model.encode_image(image_input)
 
-    # Prepare text features
-    # Read and process caption
-    text_description = ""
-    if os.path.exists(caption_path):
-        try:
-            with open(caption_path, "r", encoding="utf-8") as f:
-                text_description = f.read().strip()
-            text_description = f"Caption: {text_description}" if text_description else ""
-        except Exception as e:
-            logging.error(f"Caption reading error: {e}")
-            text_description = ""
-
-    # Tokenize categories and caption
+    # Tokenize categories
     prompts = []
     prompt_categories = []
     for category, prompts_list in categories.items():
         prompts.extend([f"a photo of {prompt}" for prompt in prompts_list])
         prompt_categories.extend([category] * len(prompts_list))  # Match category to each prompt
-
-    if text_description:
-        prompts.append(text_description)  # Append full description
-        prompt_categories.append("text_description")  # Mark its category as text_description
 
     text_inputs = clip.tokenize(prompts).to(device)
 
@@ -112,7 +97,7 @@ def analyze_content(image_path, caption_path, model, preprocess, device):
     text_features /= text_features.norm(dim=-1, keepdim=True)
     similarities = (100.0 * image_features @ text_features.T).softmax(dim=-1).cpu().numpy()[0]
 
-    # Map similarities back to categories, accounting for each category
+    # Map similarities back to categories
     category_scores = {}
     for i, cat in enumerate(prompt_categories):
         if cat not in category_scores:
@@ -132,12 +117,11 @@ def classify_posts(storage_folder_id):
     """Classifies posts and uploads to Google Drive."""
     import os
     import json
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
     import torch
     import clip
-    from PIL import Image
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    
 
     # Setup Logging
     logging.basicConfig(level=logging.INFO)
@@ -151,6 +135,7 @@ def classify_posts(storage_folder_id):
 
     # Load CLIP model
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    logging.info(f"Using {device}")
     model, preprocess = clip.load("ViT-B/32", device=device)
 
     # Define Category Folders
@@ -167,51 +152,79 @@ def classify_posts(storage_folder_id):
         service, "Neutral Content", storage_folder_id
     )
     category_folders["error"] = create_drive_folder(service, "Processing Errors", storage_folder_id)
+    
+    
+    def folder_exists(folder_name , parent_id )-> bool: 
+    
+        # Properly format the query string
+        q = (
+            f"mimeType = 'application/vnd.google-apps.folder' "
+            f"and name = '{folder_name}' "
+            f"and '{parent_id}' in parents"
+        )
 
+        response = service.files().list(q=q, fields="files(id, name)").execute()
+        folders = response.get('files', [])
+
+        if folders: 
+            return True 
+
+        return False 
+        
     # Traverse the directories
     download_dir = "/Downloads/"
     for item in os.listdir(download_dir):
-        item_path = os.path.join(download_dir, item)
-        # Check if it's a directory
-        if os.path.isdir(item_path):
-            image_path = None
-            caption_path = None
-            # Check the files in that directory
-            for file in os.listdir(item_path):
-                file_path = os.path.join(item_path, file)
-                if file.lower().endswith((".jpg", ".jpeg", ".png")):
-                    image_path = file_path
-                elif file.lower().endswith(".txt"):
-                    caption_path = file_path
+            item_path = os.path.join(download_dir, item)
 
-            # Check if both image and caption are found
-            if image_path and (caption_path or os.path.exists(caption_path)):
-                try:
-                    category = analyze_content(image_path, caption_path, model, preprocess, device)
-                    dest_folder_id = category_folders.get(category, category_folders["error"])
+            if os.path.isdir(item_path):
+                image_path = None
+                # Check the files in curr directory
+                for file in os.listdir(item_path):
+                    file_path = os.path.join(item_path, file)
+                    if file.lower().endswith((".jpg", ".jpeg", ".png")):
+                        image_path = file_path
+                        break  # Found an image, no need to continue
 
-                    if not dest_folder_id:
-                        logging.warning(f"No folder for category: {category}. Uploading to Error")
-                        dest_folder_id = category_folders["error"]
+                # Check if an image is found
+                if image_path:
+                    try:
+                        category = analyze_content(image_path, model, preprocess, device)  # Removed caption_path
+                        category_folder_id = category_folders.get(category, category_folders["error"])
 
-                    for file in os.listdir(item_path):
-                        upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
-                    logging.info(f"Uploaded '{item}' to {category}")
+                        if not category_folder_id:
+                            logging.warning(f"No folder for category: {category}. Uploading to Error")
+                            category_folder_id = category_folders["error"]
+                        
+                        
+                        if folder_exists(item, category_folder_id):
+                            logging.info(f"Folder '{item}' already exists in Google Drive. Skipping...")
+                            continue  # Skip to the next item
 
-                except Exception as e:
-                    logging.exception(f"Failed to process {item}: {e}")
-                    # Upload to Error Folder
-                    for file in os.listdir(item_path):
-                        upload_to_drive(service, category_folders["error"], os.path.join(item_path, file))
+                        dest_folder_id = create_drive_folder(service, item, category_folder_id)
+                        
+                        
+                        for file in os.listdir(item_path):
+                            upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
+                        logging.info(f"Uploaded '{item}' to {category}")
 
+                    except Exception as e:
+                        logging.exception(f"Failed to process {item}: {e}")
+                        # Upload to Error Folder
+                        for file in os.listdir(item_path):
+                            dest_folder_id = create_drive_folder(service, item , category_folders["error"])
+                            upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
 
-@app.function()
+@app.function() 
 def setup():
+    """creates classification folder and if it already exists, does nothing. """
     import os
     import json
     from google.oauth2 import service_account  
     from googleapiclient.discovery import build
-    
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
 
     service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
 
@@ -248,7 +261,7 @@ def setup():
     return storage_folder_id
 
 def create_drive_folder(service, folder_name, parent_folder_id=None):
-    """Creates a new folder in Google Drive.
+    """Creates a new folder in Google Drive. or return its id if it already exists 
 
     Args:
         folder_name (str): The name of the folder to create.
@@ -261,7 +274,7 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
     if not service: 
         service_account_info = json.loads(os.environ["SERVICE_ACCOUNT_JSON"])
 
-        creds = service_account.Credentials.from_service_account_file(
+        creds = service_account.Credentials.from_service_account_info(
             service_account_info, 
             scopes=[ 
                 'https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -275,9 +288,23 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
         'name': folder_name,
         'mimeType': 'application/vnd.google-apps.folder'
     }
+    
     if parent_folder_id:
         file_metadata['parents'] = [parent_folder_id]
+    q = (
+        f"mimeType = 'application/vnd.google-apps.folder' "
+        f"and name = '{folder_name}' "
+        f"and '{parent_folder_id}' in parents"
+    )
 
+    response = service.files().list(q=q, fields="files(id, name)").execute()
+    folders = response.get('files', [])
+
+    if folders:
+        # Folder exists, use its ID
+        logging.info(f"Folder already exists with ID: {folders[0]['id']}")
+        return folders[0]['id']
+    
     try:
         file = service.files().create(body=file_metadata, fields='id').execute()
         logging.info(f"Folder '{folder_name}' created with ID: {file.get('id')}")
@@ -289,13 +316,15 @@ def create_drive_folder(service, folder_name, parent_folder_id=None):
 
 #used only remotely, service is a param because i dont want to keep rebuilding 
 def upload_to_drive(service, folder_id, file_path):
+    from googleapiclient.http import MediaFileUpload
+
     """Uploads a file to Google Drive."""
     file_name = os.path.basename(file_path)
     mime_type = "image/jpeg"  # Default MIME type
 
     if file_name.lower().endswith(".txt"):
         mime_type = "text/plain"
-    elif file_name.lower().endswith(".json.xz"):  # Correct check for .json.xz
+    elif file_name.lower().endswith(".json.xz"): 
         mime_type = "application/x-xz"
          
     file_metadata = {"name": file_name, "parents": [folder_id]}

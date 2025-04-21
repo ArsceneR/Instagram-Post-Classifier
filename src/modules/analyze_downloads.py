@@ -183,3 +183,27 @@ def get_img_types(download_dir: str) -> set:
 
     logging.info(f"Found image types: {img_types}")
     return img_types
+
+    
+def get_caption_lengths(download_dir: str) -> None:
+    
+    caption_lengths = defaultdict(int)
+
+    for root, _, files in os.walk(os.path.expanduser(download_dir), topdown=False):
+        for file in files:
+            _, ext = os.path.splitext(file)
+            if ext.lower() in {".txt"}:  
+                file_path = os.path.join(root, file)
+                with open(file_path, "r") as  f:
+                   text=  f.read().rstrip()
+                   caption_lengths[len(text)]+=1
+                    
+    caption_lengths = sorted(caption_lengths.items(), key=lambda x: x[1])
+    count_greater_than_248 = sum(freq   for len, freq in caption_lengths  if len >248)
+    count_greater_than_77 = sum(freq   for len, freq in caption_lengths  if len >77)
+
+    print(f"{count_greater_than_248} posts exceed Long CLIP max 248 context length")
+    print(f"{count_greater_than_77} posts exceed  CLIP max 77 context length")
+
+    
+
