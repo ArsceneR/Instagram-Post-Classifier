@@ -20,7 +20,7 @@ image = (
         "google-auth-oauthlib",
         "google-auth-httplib2", 
     
-    ).add_local_dir("~/Downloads/All_Downloads_test", "/Downloads/")
+    ).add_local_dir("~/Downloads/All_Downloads", "/Downloads/")
 )
 
 
@@ -112,7 +112,7 @@ def analyze_content(image_path, model, preprocess, device):
 
     return best_category
 
-@app.function(gpu="L40S", secrets=[modal.Secret.from_name("google_drive_secret")])
+@app.function(gpu="L40S", secrets=[modal.Secret.from_name("google_drive_secret")], timeout=3600)
 def classify_posts(storage_folder_id):
     """Classifies posts and uploads to Google Drive."""
     import os
@@ -173,46 +173,52 @@ def classify_posts(storage_folder_id):
         
     # Traverse the directories
     download_dir = "/Downloads/"
+    count = 0
     for item in os.listdir(download_dir):
-            item_path = os.path.join(download_dir, item)
+        item_path = os.path.join(download_dir, item)
 
-            if os.path.isdir(item_path):
-                image_path = None
-                # Check the files in curr directory
-                for file in os.listdir(item_path):
-                    file_path = os.path.join(item_path, file)
-                    if file.lower().endswith((".jpg", ".jpeg", ".png")):
-                        image_path = file_path
-                        break  # Found an image, no need to continue
+        if os.path.isdir(item_path):
+            image_path = None
+            # Check the files in curr directory
+            for file in os.listdir(item_path):
+                file_path = os.path.join(item_path, file)
+                if file.lower().endswith((".jpg", ".jpeg", ".png")):
+                    image_path = file_path
+                    break  # Found an image, no need to continue
 
-                # Check if an image is found
-                if image_path:
-                    try:
-                        category = analyze_content(image_path, model, preprocess, device)  # Removed caption_path
-                        category_folder_id = category_folders.get(category, category_folders["error"])
+            # Check if an image is found
+            if image_path:
+                try:
+                    category = analyze_content(image_path, model, preprocess, device)  # Removed caption_path
+                    category_folder_id = category_folders.get(category, category_folders["error"])
 
-                        if not category_folder_id:
-                            logging.warning(f"No folder for category: {category}. Uploading to Error")
-                            category_folder_id = category_folders["error"]
-                        
-                        
-                        if folder_exists(item, category_folder_id):
-                            logging.info(f"Folder '{item}' already exists in Google Drive. Skipping...")
-                            continue  # Skip to the next item
+                    if not category_folder_id:
+                        logging.warning(f"No folder for category: {category}. Uploading to Error")
+                        category_folder_id = category_folders["error"]
+                    
+                    
+                    if folder_exists(item, category_folder_id):
+                        logging.info(f"Folder '{item}' already exists in Google Drive. Skipping...")
+                        count+=1
+                        continue  # Skip to the next item
 
-                        dest_folder_id = create_drive_folder(service, item, category_folder_id)
-                        
-                        
-                        for file in os.listdir(item_path):
-                            upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
-                        logging.info(f"Uploaded '{item}' to {category}")
+                    dest_folder_id = create_drive_folder(service, item, category_folder_id)
+                    
+                    
+                    for file in os.listdir(item_path):
+                        upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
+                    logging.info(f"Uploaded '{item}' to {category}")
 
-                    except Exception as e:
-                        logging.exception(f"Failed to process {item}: {e}")
-                        # Upload to Error Folder
-                        for file in os.listdir(item_path):
-                            dest_folder_id = create_drive_folder(service, item , category_folders["error"])
-                            upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
+                except Exception as e:
+                    logging.exception(f"Failed to process {item}: {e}")
+                    # Upload to Error Folder
+                    for file in os.listdir(item_path):
+                        dest_folder_id = create_drive_folder(service, item , category_folders["error"])
+                        upload_to_drive(service, dest_folder_id, os.path.join(item_path, file))
+        
+        logging.info(f"Classified {count} posts ")
+        count+=1
+        
 
 @app.function() 
 def setup():
