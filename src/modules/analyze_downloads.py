@@ -163,4 +163,23 @@ def reformat_download_structure(download_dir: str, destination_dir: str) -> None
     total_with_all_three = sum(1 for file_count in grouped.values() if len(file_count) == 3)
     logging.info(f"{total_with_all_three} groups have all three required files out of {len(grouped)}")
     
-    
+def get_img_types(download_dir: str) -> set:
+    """
+    Get a set of unique image file extensions in the download directory.
+
+    Args:
+        download_dir: Directory containing downloaded posts
+
+    Returns:
+        A set of unique image file extensions
+    """
+    img_types = set()
+
+    for root, _, files in os.walk(os.path.expanduser(download_dir), topdown=False):
+        for file in files:
+            _, ext = os.path.splitext(file)
+            if ext.lower() in {".jpg", ".jpeg", ".png", ".gif"}:  # Add more extensions if needed
+                img_types.add(ext.lower())
+
+    logging.info(f"Found image types: {img_types}")
+    return img_types

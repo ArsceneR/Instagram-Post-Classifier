@@ -11,13 +11,13 @@ file_paths = [
     './ConversationStreamDistribution/ConversationStreamDistribution_ac4cea66-b9fb-4b10-8023-d032dc646d1f_1.xlsx'
 ]
 
-download_dir = "~/Downloads/All_Downloads_2" #directory containing downloaded posts
+my_download_dir = "~/Downloads/All_Downloads" #directory containing downloaded posts
 
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s"
     )
-    pass
+    download_analysis.get_img_types(download_dir=my_download_dir)
             
 
