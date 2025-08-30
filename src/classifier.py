@@ -334,7 +334,7 @@ class Classifier:
             image_input = self.preprocess(image).unsqueeze(0).to(self.device)
 
             with torch.no_grad():
-                # Encode image and normalize features
+
                 image_features = self.model.encode_image(image_input)
                 image_features /= image_features.norm(dim=-1, keepdim=True)
 
@@ -476,16 +476,6 @@ class Classifier:
         upload_errors = 0
         if files_to_upload:
              self.logger.info(f"Uploading {len(files_to_upload)} files for '{item_dir_name}' to Drive folder ID {destination_subfolder_id} (Category: {category})")
-             # Potential optimization: Use a ThreadPoolExecutor here for concurrent uploads if I/O bound
-             # from concurrent.futures import ThreadPoolExecutor
-             # def upload_task(file_p):
-             #      return upload_to_drive(self.drive_service, destination_subfolder_id, file_p)
-             # with ThreadPoolExecutor(max_workers=5) as executor: # Adjust worker count
-             #      results = list(executor.map(upload_task, files_to_upload))
-             # upload_count = sum(1 for r in results if r is not None)
-             # upload_errors = len(results) - upload_count
-
-             # Simple sequential upload:
              for file_path in files_to_upload:
                  file_id = upload_to_drive(self.drive_service, destination_subfolder_id, file_path)
                  if file_id:
@@ -524,7 +514,7 @@ def setup_drive_folders(req_parent_folder_id: str = None):
         req_parent_folder_id: Explicit GDrive folder ID to create the root folder under.
                               If None, uses GDRIVE_PARENT_FOLDER_ID env var or defaults to 'My Drive'.
     """
-    # Configure logging for this function if needed
+
     setup_logger = logging.getLogger("setup_drive")
     setup_logger.setLevel(log_level) # Use global log level
 
@@ -535,7 +525,7 @@ def setup_drive_folders(req_parent_folder_id: str = None):
     parent_folder_id_to_use = req_parent_folder_id if req_parent_folder_id else GDRIVE_PARENT_FOLDER_ID
     setup_logger.info(f"Running setup. Target root folder name: '{ROOT_FOLDER_NAME}'. Parent ID: {parent_folder_id_to_use or 'My Drive root'}")
 
-    # Build service client just for this setup task
+
     try:
         with open(os.environ.get("SERVICE_ACCOUNT_JSON_PATH")) as f:
             service_account_info = json.load(f)
@@ -551,7 +541,7 @@ def setup_drive_folders(req_parent_folder_id: str = None):
          setup_logger.exception("Failed to build Google Drive service client during setup.")
          raise
 
-    # Create or get the main classification folder using the configured name and parent
+
     storage_folder_id = create_drive_folder(service, ROOT_FOLDER_NAME, parent_folder_id_to_use)[1]
 
     if not storage_folder_id:
@@ -562,7 +552,7 @@ def setup_drive_folders(req_parent_folder_id: str = None):
     
     parent_classification_folder_id = storage_folder_id
 
-    # Define consistent names for Drive folders based on categories
+
     CATEGORY_DRIVE_NAMES = {
         "opioid_related": "Opioid Related",
         "neutral_content": "Neutral Content",
@@ -580,9 +570,7 @@ def setup_drive_folders(req_parent_folder_id: str = None):
                 
             logger.debug(f"Obtained folder ID for '{category_key}': {folder_id}")            
         else:
-            # Log error but potentially continue if error folder fails? Decide policy.
             logger.error(f"Failed to get or create Drive folder for category: {category_key} (Drive name: {drive_folder_name})")
-            # If the 'error' folder itself fails, it's critical
             if category_key == "error":
                 return None # Cannot proceed without an error folder
 
